@@ -1,0 +1,358 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Envio de CV",
+        "formDescription": "Completa tus datos y adjunta tu CV en PDF",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre y Apellido",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Correo Electronico",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Adjunta tu CV",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        -416,
+        -928
+      ],
+      "id": "b8bec0d8-c304-438b-b4a2-534cda6384d3",
+      "name": "On form submission",
+      "webhookId": "02b1348e-368a-4ba0-98cc-fb5ef080c63b"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analizá este CV en profundidad considerando estos requisitos:\n\nREQUISITOS:\n- Conocimientos básicos de tecnología\n- Capacidad de aprendizaje demostrable\n- Experiencia en atención al cliente o soporte\n- Proactividad demostrada con ejemplos concretos\n- Estudiante o profesional de alguna carrera relacionada con la informatica\n\nINSTRUCCIONES:\n- Analizá cada requisito por separado\n- Buscá evidencia concreta en el CV para cada punto\n- Considerá el potencial del candidato, no solo experiencia exacta\n- Sé específico citando partes reales del CV\n- En puntos_fuertes y puntos_debiles escribí oraciones completas\n\nCV DEL CANDIDATO:\n{{ $json.text }}\n\nRespondé ÚNICAMENTE con este JSON puro, sin texto antes ni después:\n{\n  \"decision\": \"APTO o NO_APTO según tu evaluación\",\n  \"nombre\": \"nombre completo del candidato\",\n  \"puntos_fuertes\": [\"evidencia concreta del CV\", \"evidencia 2\", \"evidencia 3\"],\n  \"puntos_debiles\": [\"con sugerencia de mejora\", \"sugerencia 2\"],\n  \"analisis_por_requisito\": {\n    \"tecnologia\": \"análisis detallado\",\n    \"aprendizaje\": \"análisis detallado\",\n    \"atencion_cliente\": \"análisis detallado\",\n    \"proactividad\": \"análisis detallado\"\n  },\n  \"recomendacion\": \"párrafo de 3-4 oraciones\",\n  \"puntaje\": número entero del 1 al 10 según tu evaluación,\n  \"proximos_pasos\": \"qué debería mejorar el candidato\"\n}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Sos un experto evaluador de RRHH con 20 años de experiencia. \nAnalizás CVs de manera amable pero descartando a los candidatos que no cumplan con nuestros requisitos.\nRespondés ÚNICAMENTE en formato JSON puro sin texto adicional, \nsin markdown, sin comillas triples, sin ```json, solo el JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -416,
+        -720
+      ],
+      "id": "39fe8028-479c-471b-906c-91ac63f6a1f1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        -512
+      ],
+      "id": "b8bccb5d-5ab6-4c20-a4a4-5f3b44d66928",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "bpNMtQxK25igqRU0",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "Adjunta_tu_CV",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -656,
+        -720
+      ],
+      "id": "cdd65518-420e-4f53-bce4-301a563bc104",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json.output;\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nconst data = JSON.parse(cleaned);\nreturn { json: {\n  fecha: new Date().toLocaleDateString('es-AR'),\n  nombre: data.nombre,\n  decision: data.decision,\n  puntaje: data.puntaje,           // número solo para el IF\n  puntaje_display: data.puntaje + '/10',  // para mostrar en el mail\n  puntos_fuertes: data.puntos_fuertes.join(' | '),\n  puntos_debiles: data.puntos_debiles.join(' | '),\n  conclusion: data.recomendacion\n}};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -704
+      ],
+      "id": "8b123b7a-c6a1-4c73-9cc2-797ad2bf9d08",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "margewka29@gmail.com",
+        "subject": "=Candidato a evaluar  {{ $json.nombre }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;\">\n  \n  <div style=\"background-color: #1a3a5c; padding: 20px; border-radius: 6px 6px 0 0;\">\n    <h1 style=\"color: white; margin: 0; font-size: 20px;\">📄 Reporte de Evaluación de CV</h1>\n  </div>\n  <div style=\"padding: 20px; background-color: #f9f9f9;\">\n    \n    <p><strong>Candidato:</strong> {{ $('Code in JavaScript').item.json.nombre }}</p>\n    <p><strong>Fecha:</strong> {{ $('Code in JavaScript').item.json.fecha }}</p>\n    <hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\">\n    <h2 style=\"color: #1a3a5c; font-size: 16px;\">🎯 Puntaje</h2>\n    <p style=\"font-size: 28px; font-weight: bold; color: #1a3a5c;\">{{ $('Code in JavaScript').item.json.puntaje_display }}</p>\n    <h2 style=\"color: #1a3a5c; font-size: 16px;\">🏆 Decisión</h2>\n    <p style=\"font-size: 18px; font-weight: bold; color: green;\">{{ $('Code in JavaScript').item.json.decision }}</p>\n    <hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\">\n    <h2 style=\"color: #1a3a5c; font-size: 16px;\">✅ Puntos Fuertes</h2>\n    <p>{{ $('Code in JavaScript').item.json.puntos_fuertes }}</p>\n    <h2 style=\"color: #1a3a5c; font-size: 16px;\">❌ Puntos Débiles</h2>\n    <p>{{ $('Code in JavaScript').item.json.puntos_debiles }}</p>\n    <h2 style=\"color: #1a3a5c; font-size: 16px;\">💬 Conclusión</h2>\n    <p>{{ $('Code in JavaScript').item.json.conclusion }}</p>\n  </div>\n  <div style=\"background-color: #1a3a5c; padding: 12px 20px; border-radius: 0 0 6px 6px;\">\n    <p style=\"color: white; margin: 0; font-size: 12px;\">Generado automáticamente por el sistema de filtrado de CVs</p>\n  </div>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        -672
+      ],
+      "id": "9cfee0c3-d4c6-4bb7-8119-17b0c558d90a",
+      "name": "Send a message",
+      "webhookId": "fe23937a-9cf2-424e-84c2-4b7758670990",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "f55r7c1MmVfq1hNH",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7ee8c031-6a72-401c-867d-293ff5d2a681",
+              "leftValue": "={{ $json.puntaje }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -32,
+        -496
+      ],
+      "id": "6e3515ea-96a4-45ef-8de7-bb1a92dd2e15",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "Adjunta_tu_CV",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1EXBqkK32TK-l1YqQxshr_SIHBIRMloZF",
+          "mode": "list",
+          "cachedResultName": "Cvs a considerar",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1EXBqkK32TK-l1YqQxshr_SIHBIRMloZF"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        384,
+        -672
+      ],
+      "id": "54e37a7e-4049-4fa8-bdcd-32b022555fcb",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "I4dqvfTAeQJlmKgk",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        208,
+        -768
+      ],
+      "id": "8d03351d-cd45-4ee3-a598-e3e7e96a1cb8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json['Correo Electronico'] }}",
+        "subject": "Informacion sobre tu postulación",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;\">    <div style=\"background-color: #1a3a5c; padding: 20px; border-radius: 6px 6px 0 0;\">     <h1 style=\"color: white; margin: 0; font-size: 20px;\">📄 Resultado de tu postulación</h1>   </div>    <div style=\"padding: 20px; background-color: #f9f9f9;\">     <p>Hola <strong>{{ $('On form submission').item.json['Nombre y Apellido'] }}</strong>,</p>     <p>Gracias por tu tiempo y por confiar en nosotros para dar el siguiente paso en tu carrera.</p>     <p>Luego de revisar tu CV con detenimiento, en esta oportunidad hemos decidido no continuar con tu candidatura, ya que el perfil no se ajusta a los requisitos actuales del puesto.</p>     <p>Esto no refleja tu valor como profesional — el mercado laboral es dinámico y las oportunidades cambian. Te animamos a seguir postulándote y a continuar desarrollando tu perfil.</p>     <p>Te deseamos mucho éxito en tu búsqueda. 🙌</p>   </div>    <div style=\"background-color: #1a3a5c; padding: 12px 20px; border-radius: 0 0 6px 6px;\">     <p style=\"color: white; margin: 0; font-size: 12px;\">Mensaje generado automáticamente — por favor no respondas este correo.</p>   </div>  </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        -496
+      ],
+      "id": "cc61db7f-bb12-4161-9c6d-c9a86f77cc64",
+      "name": "Send a message1",
+      "webhookId": "9a9a98bc-ce4d-449b-8593-3985e4295ed3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "f55r7c1MmVfq1hNH",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8f74cb53-0a50-4017-a0d9-b6350fe6fa0a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "06dc0c4e87757f4da30d6afef2bd1f50171b09d65982574a791dd4f5b365c76c"
+  },
+  "id": "aC2ehtW0JDYza7gi",
+  "tags": []
+}
